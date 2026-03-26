@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AthenaLite Query Worker - SQS triggered DuckDB query executor
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Default: athenalite-data-ap
+  DynamoQueryTableName:
+    Type: String
+    Default: AthenaLiteQueries
+  QueryQueueArn:
+    Type: String
+    Description: ARN of the AthenaLiteQueryQueue from the gateway stack
+
+Resources:
+  AthenaLiteQueryWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: org.example.SqsQueryHandler::handleRequest
+      Runtime: java17
+      CodeUri: .
+      MemorySize: 1024
+      Timeout: 120
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3BucketName
+          DYNAMODB_QUERY_TABLE: !Ref DynamoQueryTableName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - S3CrudPolicy:
+            BucketName: !Ref S3BucketName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DynamoQueryTableName
+      Events:
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !Ref QueryQueueArn
+            BatchSize: 1
