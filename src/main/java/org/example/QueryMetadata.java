@@ -10,6 +10,7 @@ public class QueryMetadata {
     private String status;
     private String executionTime;
     private String error;
+    private long ttl;
 
     @DynamoDbPartitionKey
     public String getUserId() { return userId; }
@@ -27,4 +28,7 @@ public class QueryMetadata {
 
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
+
+    public long getTtl() { return ttl; }
+    public void setTtl(long ttl) { this.ttl = ttl; }
 }

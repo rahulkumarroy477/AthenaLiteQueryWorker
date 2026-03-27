@@ -8,12 +8,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.enhanced.dynamodb.*;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.sql.*;
+import java.util.List;
 
 public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
 
@@ -23,14 +25,17 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
     private static final String REGION = System.getenv("AWS_REGION") != null ? System.getenv("AWS_REGION") : "ap-south-1";
     private static final String BUCKET = System.getenv("S3_BUCKET") != null ? System.getenv("S3_BUCKET") : "athenalite-data-ap";
     private static final String QUERY_TABLE = System.getenv("DYNAMODB_QUERY_TABLE") != null ? System.getenv("DYNAMODB_QUERY_TABLE") : "AthenaLiteQueryMetadata";
+    private static final String METADATA_TABLE = System.getenv("DYNAMODB_TABLE") != null ? System.getenv("DYNAMODB_TABLE") : "AthenaLiteTables";
 
     private final S3Client s3 = S3Client.builder().region(Region.of(REGION)).build();
     private final DynamoDbTable<QueryMetadata> queryTable;
+    private final DynamoDbTable<TableMetadata> metadataTable;
 
     public SqsQueryHandler() {
         DynamoDbClient ddb = DynamoDbClient.builder().region(Region.of(REGION)).build();
         DynamoDbEnhancedClient enhanced = DynamoDbEnhancedClient.builder().dynamoDbClient(ddb).build();
         this.queryTable = enhanced.table(QUERY_TABLE, TableSchema.fromBean(QueryMetadata.class));
+        this.metadataTable = enhanced.table(METADATA_TABLE, TableSchema.fromBean(TableMetadata.class));
     }
 
     @Override
@@ -61,9 +66,16 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
             stmt.execute("LOAD httpfs");
             stmt.execute("SET s3_region='" + REGION + "'");
 
-            String s3Input = "s3://" + BUCKET + "/" + job.getS3ParquetKey();
-            log.info("Creating view from {}", s3Input);
-            stmt.execute("CREATE VIEW \"" + job.getTableName() + "\" AS SELECT * FROM read_parquet('" + s3Input + "')");
+            // Load ALL ready tables for this user
+            List<TableMetadata> userTables = metadataTable.query(
+                    QueryConditional.keyEqualTo(k -> k.partitionValue(job.getUserId()))
+            ).items().stream().filter(t -> "READY".equals(t.getStatus())).toList();
+
+            for (TableMetadata t : userTables) {
+                String s3Path = "s3://" + BUCKET + "/" + t.getS3ParquetKey();
+                log.info("Creating view \"{}\" from {}", t.getTableName(), s3Path);
+                stmt.execute("CREATE VIEW \"" + t.getTableName() + "\" AS SELECT * FROM read_parquet('" + s3Path + "')");
+            }
 
             log.info("Executing: {}", job.getSql());
             ResultSet rs = stmt.executeQuery(job.getSql());
@@ -89,7 +101,6 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
                 csv.append("\n");
             }
 
-            // Upload CSV to S3
             s3.putObject(
                     PutObjectRequest.builder().bucket(BUCKET).key(job.getResultKey()).contentType("text/csv").build(),
                     RequestBody.fromString(csv.toString()));
@@ -112,6 +123,8 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
         qm.setStatus(status);
         qm.setExecutionTime(executionTime);
         qm.setError(error != null ? error : "");
+        qm.setTtl(java.time.LocalDate.now(java.time.ZoneOffset.UTC).plusDays(1)
+                .atStartOfDay(java.time.ZoneOffset.UTC).toEpochSecond());
         queryTable.putItem(qm);
     }
 }
