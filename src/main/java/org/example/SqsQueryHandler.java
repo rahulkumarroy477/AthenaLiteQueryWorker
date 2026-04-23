@@ -114,8 +114,8 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
             for (TableMetadata t : userTables) {
                 String s3Path = "s3://" + BUCKET + "/" + escapeSqlString(t.getS3ParquetKey());
                 String safeName = escapeSqlIdentifier(t.getTableName());
-                log.info("Creating view \"{}\" from {}", safeName, s3Path);
-                stmt.execute("CREATE VIEW \"" + safeName + "\" AS SELECT * FROM read_parquet('" + s3Path + "')");
+                log.info("Loading table \"{}\" from {}", safeName, s3Path);
+                stmt.execute("CREATE TABLE \"" + safeName + "\" AS SELECT * FROM read_parquet('" + s3Path + "')");
             }
 
             // Phase 2: Lock down DuckDB — no more external access
