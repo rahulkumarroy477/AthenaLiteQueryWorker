@@ -11,6 +11,7 @@ import software.amazon.awssdk.enhanced.dynamodb.*;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -85,6 +86,14 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
 
         String queryId = job.getResultKey().replaceAll(".*/", "").replace(".csv", "");
         long start = System.currentTimeMillis();
+
+        // Idempotency check: skip if query is no longer RUNNING
+        QueryMetadata existing = queryTable.getItem(r -> r.key(k ->
+                k.partitionValue(job.getUserId()).sortValue(queryId)));
+        if (existing == null || !"RUNNING".equals(existing.getStatus())) {
+            log.info("Query {} already processed or missing, skipping", queryId);
+            return;
+        }
 
         // Validate SQL before executing
         String sqlValidationError = validateSql(job.getSql());
