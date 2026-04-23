@@ -1,0 +1,33 @@
+name: Deploy to Lambda
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '17'
+
+      - name: Build
+        run: mvn clean package -q -DskipTests
+
+      - name: Deploy to Lambda via S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ap-south-1
+        run: |
+          ZIP_FILE=$(find target -name "*-lambda-package.zip" | head -1)
+          S3_KEY="lambda-deployments/AthenaLite-QueryWorker-$(date +%s).zip"
+          aws s3 cp "$ZIP_FILE" "s3://athenalite-data-ap/$S3_KEY"
+          aws lambda update-function-code \
+            --function-name AthenaLite-QueryWorker \
+            --s3-bucket athenalite-data-ap \
+            --s3-key "$S3_KEY"
