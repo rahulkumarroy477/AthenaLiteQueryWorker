@@ -49,7 +49,7 @@ Table: `AthenaLiteQueryMetadata`
 
 | Variable | Value |
 |----------|-------|
-| `S3_BUCKET` | `athenalite-data-ap` |
+| `S3_BUCKET` | `athenalite-data-ap-south-1` |
 | `DYNAMODB_QUERY_TABLE` | `AthenaLiteQueryMetadata` |
 
 `AWS_REGION` is set automatically by Lambda.

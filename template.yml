@@ -5,7 +5,7 @@ Description: AthenaLite Query Worker - SQS triggered DuckDB query executor
 Parameters:
   S3BucketName:
     Type: String
-    Default: athenalite-data-ap
+    Default: athenalite-data-ap-south-1
   DynamoQueryTableName:
     Type: String
     Default: AthenaLiteQueries

@@ -27,7 +27,7 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
     private static final ObjectMapper mapper = new ObjectMapper();
 
     private static final String REGION = System.getenv("AWS_REGION") != null ? System.getenv("AWS_REGION") : "ap-south-1";
-    private static final String BUCKET = System.getenv("S3_BUCKET") != null ? System.getenv("S3_BUCKET") : "athenalite-data-ap";
+    private static final String BUCKET = System.getenv("S3_BUCKET") != null ? System.getenv("S3_BUCKET") : "athenalite-data-ap-south-1";
     private static final String QUERY_TABLE = System.getenv("DYNAMODB_QUERY_TABLE") != null ? System.getenv("DYNAMODB_QUERY_TABLE") : "AthenaLiteQueryMetadata";
     private static final String METADATA_TABLE = System.getenv("DYNAMODB_TABLE") != null ? System.getenv("DYNAMODB_TABLE") : "AthenaLiteTables";
 

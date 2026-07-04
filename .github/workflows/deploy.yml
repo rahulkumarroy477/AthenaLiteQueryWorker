@@ -26,8 +26,8 @@ jobs:
         run: |
           ZIP_FILE=$(find target -name "*-lambda-package.zip" | head -1)
           S3_KEY="lambda-deployments/AthenaLite-QueryWorker-$(date +%s).zip"
-          aws s3 cp "$ZIP_FILE" "s3://athenalite-data-ap/$S3_KEY"
+          aws s3 cp "$ZIP_FILE" "s3://athenalite-data-ap-south-1/$S3_KEY"
           aws lambda update-function-code \
             --function-name AthenaLite-QueryWorker \
-            --s3-bucket athenalite-data-ap \
+            --s3-bucket athenalite-data-ap-south-1 \
             --s3-key "$S3_KEY"
