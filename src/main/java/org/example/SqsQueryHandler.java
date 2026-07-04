@@ -123,8 +123,10 @@ public class SqsQueryHandler implements RequestHandler<SQSEvent, Void> {
             for (TableMetadata t : userTables) {
                 String s3Path = "s3://" + BUCKET + "/" + escapeSqlString(t.getS3ParquetKey());
                 String safeName = escapeSqlIdentifier(t.getTableName());
-                log.info("Creating view \"{}\" from {}", safeName, s3Path);
-                stmt.execute("CREATE VIEW \"" + safeName + "\" AS SELECT * FROM read_parquet('" + s3Path + "')");
+                String readFn = s3Path.endsWith(".csv") ? "read_csv_auto" :
+                                s3Path.endsWith(".json") ? "read_json_auto" : "read_parquet";
+                log.info("Creating view \"{}\" from {} using {}", safeName, s3Path, readFn);
+                stmt.execute("CREATE VIEW \"" + safeName + "\" AS SELECT * FROM " + readFn + "('" + s3Path + "')");
             }
 
             // Phase 2: Execute user SQL (views resolve read_parquet at query time, so external access must remain on)
